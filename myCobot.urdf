@@ -1,0 +1,150 @@
+<?xml version="1.0"?>
+<robot name="robot" xmlns:xacro="http://ros.org/wiki/xacro">
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 -0.004 0.0375" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.09 0.1 0.075"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -0.004 0.0375" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.09 0.1 0.075"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="A motor" type="revolute">
+    <parent link="base_link"/>
+    <child link="link_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10"/>
+    <origin xyz="0 -0.002 0.071" rpy="0 0 -0.000001"/>
+  </joint>
+  <link name="link_2">
+    <visual>
+      <origin xyz="0.005 0 0.042" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.05 0.085"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.005 0 0.042" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.05 0.085"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="B motor" type="revolute">
+    <parent link="link_2"/>
+    <child link="link_3"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="10" velocity="10"/>
+    <origin xyz="0.0325 0 0.0599" rpy="0.000001 0 0"/>
+  </joint>
+  <link name="link_3">
+    <visual>
+      <origin xyz="0.025 0 0.055" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.057 0.05 0.16"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.025 0 0.055" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.057 0.05 0.16"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="C motor" type="revolute">
+    <parent link="link_3"/>
+    <child link="link_4"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="10" velocity="10"/>
+    <origin xyz="-0.0025 0 0.111" rpy="0 0 0"/>
+  </joint>
+  <link name="link_4">
+    <visual>
+      <origin xyz="-0.025 0 0.047" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="-0.025 0 0.047" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="D motor" type="revolute">
+    <parent link="link_4"/>
+    <child link="link_5"/>
+    <axis xyz="0.000006 -1 -0.000003"/>
+    <limit effort="10" velocity="10"/>
+    <origin xyz="0 0 0.0959" rpy="3.14159 0.000006 -1.570791"/>
+  </joint>
+  <link name="link_5">
+    <visual>
+      <origin xyz="0 -0.027 -0.008" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -0.027 -0.008" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="E motor" type="revolute">
+    <parent link="link_5"/>
+    <child link="link_6"/>
+    <axis xyz="0.000003 0.000001 -1"/>
+    <limit effort="10" velocity="10"/>
+    <origin xyz="0 -0.0334 -0.034" rpy="3.141592 -0.000003 -1.570796"/>
+  </joint>
+  <link name="link_6">
+    <visual>
+      <origin xyz="0 0.005 0.002" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.065 0.12"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0.005 0.002" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.065 0.12"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="F motor" type="revolute">
+    <parent link="link_6"/>
+    <child link="link_7"/>
+    <axis xyz="0 0.000001 1"/>
+    <limit effort="10" velocity="10"/>
+    <origin xyz="0 0.035 0.038" rpy="-1.570795 0 0"/>
+  </joint>
+  <link name="link_7">
+    <visual>
+      <origin xyz="0 0 0.007" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.04 0.016"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.007" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.04 0.016"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="tool">
+  </link>
+  <joint name="link_7_tool_joint" type="fixed">
+    <parent link="link_7"/>
+    <child link="tool"/>
+    <origin xyz="0 0 0.0515" rpy="0 0 0"/>
+  </joint>
+</robot>

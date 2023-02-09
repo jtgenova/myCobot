@@ -18,6 +18,7 @@ try:
     from stable_baselines3.common.buffers import DictReplayBuffer
     from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
     from stable_baselines3.common.env_checker import check_env
+    from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 except ImportError:
     sys.exit(
         'Please make sure you have all dependencies installed. '
@@ -57,7 +58,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             "Top Image": top_image_space, "Side Image": side_image_space})
 
         # Environment specific
-        self.__timestep = int(self.getBasicTimeStep())*2048
+        self.__timestep = int(self.getBasicTimeStep())*4096
         self.__motors = []
         self.__cam_top = None
         self.__cam_ee = None
@@ -72,7 +73,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         super().step(self.__timestep)
 
         # Create the arm chain from the URDF
-        base_path = '/home/jtgenova/Documents/GitHub/advancedAI/'
+        base_path = '/home/jtgenova/Documents/GitHub/myCobot/'
         os.chdir(base_path)
         filename = "myCobot.urdf"
         # print(filename)
@@ -177,15 +178,17 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         distance_y = targetPosition[1] - eePosition[1]
         distance_z = targetPosition[2] - eePosition[2]
         total_distance = math.sqrt(distance_x**2 + distance_y**2 + distance_z**2)
+        # manhattan_distance = abs(distance_x) + abs(distance_y) + abs(distance_z)
 
         done = False
-        if (self.step_count >= 1) or (total_distance < 0.005):
+        if (self.step_count >= 1) or (total_distance < 1e-5):
             # print('Steps: ' + str(self.step_count))
-            print(f'Total distance: {total_distance}, Orientation: {orientation_z}')
+            print(f'Total Distance: {total_distance}, Orientation: {orientation_z}')
             done = True
         
         # reward
         r_distance = -total_distance
+        # r_distance = -manhattan_distance
         r_orientation = -orientation_z
         reward = r_distance + r_orientation
 
@@ -199,7 +202,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         return dict({"Current joint Angles": joint_angles, "Top Image": top_array, "Side Image": side_array}), reward, done, {}
 
     def add_ikpy(self, obs):
-        IKPY_MAX_ITERATIONS = 4
+        IKPY_MAX_ITERATIONS = 128
         
         for i in range(len(self.__motors)):
             self.__motors[i].setPosition(float(obs[i]))
@@ -209,7 +212,6 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         armPosition = self.__arm.getPosition()
         
         # Compute the position of the target relatively to the arm.
-        # x and y axis are inverted because the arm is not aligned with the Webots global axes.
         x = targetPosition[0] - armPosition[0]
         y = targetPosition[1] - armPosition[1]
         z = targetPosition[2] - armPosition[2]
@@ -227,9 +229,13 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         # Recalculate the inverse kinematics of the arm if necessary.
         position = self.__armChain.forward_kinematics(ikResults)
         squared_distance = (position[0, 3] - x)**2 + (position[1, 3] - y)**2 + (position[2, 3] - z)**2
-        if math.sqrt(squared_distance) > 0.005:
+        if math.sqrt(squared_distance) > 1e-5:
             ikResults = self.__armChain.inverse_kinematics([x, y, z])
-            
+        
+        # np_array = np.array(ikResults[1:7])   
+        # np_round = np.around(np_array, 5)
+        # np_list = list(np_round)
+        # print(f'IK Joint Angles: {np_list}') 
         # print(ikResults[1:7])
         
         # if total_distance > 0.00125:
@@ -245,45 +251,78 @@ def main():
     # Train
     # model = PPO('MultiInputPolicy', env, n_steps=25, verbose=1, tensorboard_log="./log/")
     # model = A2C('MultiInputPolicy', env, n_steps=25, verbose=1, tensorboard_log="./log/")
-    # model = SAC("MultiInputPolicy", env, buffer_size=100, replay_buffer_class=DictReplayBuffer, batch_size=25, verbose=1, tensorboard_log="./log/")
     # model = TD3("MultiInputPolicy", env, buffer_size=100, replay_buffer_class=DictReplayBuffer, batch_size=25, verbose=1, tensorboard_log="./log/")
     # model = DDPG("MultiInputPolicy", env, buffer_size=250, replay_buffer_class=DictReplayBuffer, batch_size=50, verbose=1, tensorboard_log="./log/")
     
-    # model.learn(total_timesteps=10e3,log_interval=25, tb_log_name='run_sac_dr', reset_num_timesteps=False)
-    # itererations = 100
-    # episodes = 100
-
-    # for iter in range(itererations):
+    # model.learn(total_timesteps=100,log_interval=25, tb_log_name='run_temp', reset_num_timesteps=False)
+    
+    # model hyperparameters
+    buffer_size = 1000
+    replay_buffer_class = DictReplayBuffer
+    batch_size = 128
+    n_actions = env.action_space.shape[-1]
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.05 * np.ones(n_actions))
+    ent_coef = 'auto_0.1'
+    
+    itererations = 100
+    episodes = 1000
+    batch_inds = np.random.randint(0, 5, size=10)
+    model = SAC("MultiInputPolicy", env, buffer_size=buffer_size, replay_buffer_class=replay_buffer_class,action_noise=action_noise, ent_coef=ent_coef, batch_size=batch_size, verbose=1, tensorboard_log="./data/")
+    for iter in range(itererations):
         
-    #     for ep in range(episodes):
-    #         # print("Episode #: " + str(ep+1))
-    #         done = False
-    #         obs = env.reset()
-    #         obs_old = obs
-    #         while done != True:
-    #             actions = env.add_ikpy(obs_old['Current joint Angles'])
-    #             obs_new, reward, done, infos = env.step(actions)
-    #             model.replay_buffer.add(obs_old, obs_new, actions, reward, done, infos)
-    #             obs_old = obs_new
+        for ep in range(episodes):
+            print("Episode #: " + str(ep+1))
+            done = False
+            obs = env.reset()
+            obs_old = obs
+            while done != True:
+                actions = env.add_ikpy(obs_old['Current joint Angles'])
+                obs_new, reward, done, infos = env.step(actions)
+                model.replay_buffer.add(obs_old, obs_new, actions, reward, done, infos)
+                obs_old = obs_new
                 
-    #     model.learn(total_timesteps=100,log_interval=25, tb_log_name='run_sac_expert', reset_num_timesteps=False)
+        # buffer_obs, buffer_actions, buffer_next_obs, buffer_dones, buffer_reward = model.replay_buffer._get_samples(batch_inds)
+        # print(f'Actions from replay buffer: {buffer_actions}')
+    
+        model.learn(total_timesteps=1e3,log_interval=100, tb_log_name=f'sac_{iter+1}k', reset_num_timesteps=False)
+        model.save(f'models/sac_{iter+1}k')
+        del model
+        os.chdir('/home/jtgenova/Documents/GitHub/myCobot/') 
+        model = SAC.load(f'models/sac_{iter+1}k', env)
+                               
+    # buffer_obs, buffer_actions, buffer_next_obs, buffer_dones, buffer_reward = model.replay_buffer._get_samples(batch_inds)
+    # print(buffer_actions)
     
     # model.save('models/sac_100k')
     # env.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
+
+    # add noise for exploration
+    # n_actions = env.action_space.shape[-1]
+    # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.05 * np.ones(n_actions))
     
-    model = SAC.load('models/sac_dr20k', env)
-    model.learn(total_timesteps=10e3,log_interval=25, tb_log_name='run_sac__dr30k', reset_num_timesteps=False)
+    # model = SAC("MultiInputPolicy", env, buffer_size=5000, replay_buffer_class=DictReplayBuffer, action_noise=action_noise, ent_coef='auto_0.1', batch_size=128, verbose=1, tensorboard_log="./log/")
+    # model.learn(total_timesteps=20e3,log_interval=1000, tb_log_name='run_sac_new20k', reset_num_timesteps=False)
+    # model.save('models/sac_new20k')
+
+    # iterations = 5
     
-    model.save('models/sac_dr30k')
+    # for i in range(2, iterations+1):
+    #     del model
+    #     os.chdir('/home/jtgenova/Documents/GitHub/myCobot/') 
+    #     model = SAC.load(f'models/sac_new{(i-1)*2}0k', env)
+    #     model.learn(total_timesteps=20e3,log_interval=1000, tb_log_name=f'run_sac_new{2*i}0k', reset_num_timesteps=False)
+    #     model.save(f'models/sac_new{2*i}0k')
+    
     env.simulationSetMode(Supervisor.SIMULATION_MODE_PAUSE)
 
-    # obs = env.reset()
-    # while True:
-    #     action = model.predict(obs, deterministic=True)
-    #     obs, reward, done, info = env.step(action[0].reshape(-1))
-    #     # env.render()
-    #     if done:
-    #         obs = env.reset()
+    obs = env.reset()
+    while True:
+        action = model.predict(obs, deterministic=True)
+        print(f'Actions from predict: {action[0].reshape(-1)}')
+        obs, reward, done, info = env.step(action[0].reshape(-1))
+        # env.render()
+        if done:
+            obs = env.reset()
 
 if __name__ == '__main__':
     main()
